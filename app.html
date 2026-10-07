@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BankShot: one-cushion pool geometry</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#123324;color:#eaf5ee;min-height:100vh;padding:24px 14px;display:flex;justify-content:center}
+main{width:100%;max-width:560px}
+h1{font-size:22px;margin-bottom:2px}
+.sub{color:#8fc7a8;font-size:13px;margin-bottom:18px}
+.card{background:#1b4a33;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);padding:20px;margin-bottom:16px}
+label{font-size:12px;font-weight:600;color:#8fc7a8;display:block;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+input{width:100%;padding:10px 12px;border:1.5px solid #2f6b4c;border-radius:9px;font-size:16px;font-family:inherit;background:#123324;color:#eaf5ee}
+input:focus{outline:none;border-color:#57b584}
+.result{margin-top:14px;padding:14px;border-radius:10px;background:#123324;display:none}
+.result.show{display:block}
+.big{font-size:18px;font-weight:700;color:#7be3a8}
+.kv{font-size:13px;color:#a8d5ba;margin-top:4px;line-height:1.5}
+.row2{display:flex;gap:10px}.row2>div{flex:1}
+a{color:#7be3a8;text-decoration:none}
+footer{font-size:12px;color:#5e8f73;text-align:center;margin-top:6px}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+td,th{padding:5px 4px;text-align:left;border-bottom:1px solid #2f6b4c;color:#dcefe2}
+svg{width:100%;height:auto;border-radius:10px;background:#0d2418}
+</style>
+</head>
+<body>
+<main>
+<h1>BankShot</h1>
+<p class="sub">One-cushion bank and kick geometry, in diamonds</p>
+<div class="card">
+<label>Ball positions (diamonds, x 0-8 / y 0-4)</label>
+<div class="row2">
+<div><label for="ox">Cue x</label><input id="ox" value="1" inputmode="decimal"></div>
+<div><label for="oy">Cue y</label><input id="oy" value="1" inputmode="decimal"></div>
+<div><label for="tx">Target x</label><input id="tx" value="7" inputmode="decimal"></div>
+<div><label for="ty">Target y</label><input id="ty" value="3" inputmode="decimal"></div>
+</div>
+<div class="result show" style="background:#123324;padding:6px 0 0">
+<svg id="table" viewBox="0 0 840 460" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+<div class="result show" id="best" style="background:#123324"></div>
+<div id="others"></div>
+</div>
+<footer>Idealized mirror geometry - no spin or cushion compression; real tables play shorter. <a href="index.html">About</a></footer>
+</main>
+<script src="engine.js"></script>
+<script>
+var $=function(id){return document.getElementById(id)};
+var S=100,P=20; /* px per diamond, padding */
+function px(x){return P+x*S;} function py(y){return P+y*S;}
+function draw(ox,oy,tx,ty,banks){
+  var svg='';
+  svg+='<rect x="'+P+'" y="'+P+'" width="'+(8*S)+'" height="'+(4*S)+'" fill="#1e6b47" rx="8"/>';
+  for(var d=1;d<8;d++)svg+='<circle cx="'+px(d)+'" cy="'+(P-8)+'" r="3" fill="#cfe8d8"/><circle cx="'+px(d)+'" cy="'+(P+4*S+8)+'" r="3" fill="#cfe8d8"/>';
+  for(var e=1;e<4;e++)svg+='<circle cx="'+(P-8)+'" cy="'+py(e)+'" r="3" fill="#cfe8d8"/><circle cx="'+(P+8*S+8)+'" cy="'+py(e)+'" r="3" fill="#cfe8d8"/>';
+  if(banks.length){
+    var b=banks[0];
+    svg+='<line x1="'+px(ox)+'" y1="'+py(oy)+'" x2="'+px(b.aim.x)+'" y2="'+py(b.aim.y)+'" stroke="#ffd166" stroke-width="3"/>';
+    svg+='<line x1="'+px(b.aim.x)+'" y1="'+py(b.aim.y)+'" x2="'+px(tx)+'" y2="'+py(ty)+'" stroke="#ffd166" stroke-width="3" stroke-dasharray="8 6"/>';
+    svg+='<circle cx="'+px(b.aim.x)+'" cy="'+py(b.aim.y)+'" r="7" fill="none" stroke="#ffd166" stroke-width="3"/>';
+  }
+  svg+='<circle cx="'+px(ox)+'" cy="'+py(oy)+'" r="11" fill="#f4f4f4" stroke="#888"/>';
+  svg+='<circle cx="'+px(tx)+'" cy="'+py(ty)+'" r="11" fill="#d23c3c" stroke="#7a1f1f"/>';
+  $('table').innerHTML=svg;
+}
+function calc(){
+  var ox=parseFloat($('ox').value),oy=parseFloat($('oy').value),
+      tx=parseFloat($('tx').value),ty=parseFloat($('ty').value);
+  var box=$('best'),others=$('others');
+  if(!BankShot.onTable(ox,oy)||!BankShot.onTable(tx,ty)){box.classList.remove('show');others.innerHTML='';return;}
+  var banks=BankShot.allBanks(ox,oy,tx,ty);
+  draw(ox,oy,tx,ty,banks);
+  box.classList.add('show');
+  if(!banks.length){box.innerHTML='<div class="kv">No clean one-cushion path from here - move a ball.</div>';others.innerHTML='';return;}
+  var b=banks[0];
+  box.innerHTML='<div class="big">Aim '+b.aim.x+', '+b.aim.y+' on the '+b.cushion+' rail</div>'+
+   '<div class="kv">'+b.travelIn+' diamonds to the rail, '+b.travelOut+' after. Mirror angle '+b.angleIn+'\u00b0 (equals out by construction).</div>';
+  var h='<table><tr><th>Rail</th><th>Aim point</th><th>Path length</th><th>Angle</th></tr>';
+  banks.forEach(function(x){
+    h+='<tr><td>'+x.cushion+'</td><td>'+x.aim.x+', '+x.aim.y+'</td><td>'+(Math.round((x.travelIn+x.travelOut)*1000)/1000)+'</td><td>'+x.angleIn+'\u00b0</td></tr>';
+  });
+  others.innerHTML=h+'</table>';
+}
+['ox','oy','tx','ty'].forEach(function(i){$(i).addEventListener('input',calc);});
+calc();
+</script>
+</body>
+</html>
